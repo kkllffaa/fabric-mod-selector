@@ -21,7 +21,7 @@ jobs:
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
-          automatic_release_tag: 0.13.1+1.0
+          automatic_release_tag: 0.13.1_1.0
           prerelease: false
           title: Dev Build
           files: |
