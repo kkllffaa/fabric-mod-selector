@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import com.kkllffaa.fabricmodselector.Filter;
 import org.objectweb.asm.Opcodes;
 
 import net.fabricmc.accesswidener.AccessWidener;
@@ -206,6 +207,9 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 
 		Map<String, Set<ModCandidate>> envDisabledMods = new HashMap<>();
 		modCandidates = discoverer.discoverMods(this, envDisabledMods);
+
+		// apply my filter
+		Filter.filter(modCandidates, envDisabledMods);
 
 		// apply version and dependency overrides
 

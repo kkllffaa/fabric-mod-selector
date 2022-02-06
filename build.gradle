@@ -19,7 +19,7 @@ plugins {
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
-archivesBaseName = "fabric-loader"
+archivesBaseName = "fabric-mod-selector"
 
 // Fetch build number from Jenkins
 def ENV = System.getenv()
@@ -30,7 +30,8 @@ allprojects {
 	apply plugin: 'checkstyle'
 
 	def constantsSource = rootProject.file("src/main/java/net/fabricmc/loader/impl/FabricLoaderImpl.java").text
-	version = (constantsSource =~ /\s+VERSION\s*=\s*"(.*)";/)[0][1] + (ENV.GITHUB_ACTIONS ? "" : "+local")
+	def constantsSource1 = rootProject.file("src/main/java/com/kkllffaa/fabricmodselector/Filter.java").text
+	version = (constantsSource =~ /\s+VERSION\s*=\s*"(.*)";/)[0][1] + "+" + (constantsSource1 =~ /\s+VERSION\s*=\s*"(.*)";/)[0][1]
 
 	repositories {
 		maven {
@@ -153,7 +154,7 @@ task fatJar(type: ShadowJar, dependsOn: getSat4jAbout) {
 	outputs.upToDateWhen { false }
 }
 
-File proguardFile = file("build/libs/fabric-loader-${version}.jar")
+File proguardFile = file("build/libs/fabric-mod-selector-${version}.jar")
 
 import proguard.gradle.ProGuardTask
 task proguardJar(type: ProGuardTask, dependsOn: fatJar) {
@@ -266,6 +267,9 @@ allprojects {
 
 		// Exclude gson since it is google's code, we just modify and bundle it
 		exclude '**/lib/gson/*.java'
+
+
+		exclude '**/com/kkllffaa/*'
 	}
 }
 
@@ -273,83 +277,3 @@ allprojects {
 tasks.withType(GenerateModuleMetadata) {
 	enabled = false
 }
-
-publishing {
-	publications {
-		mavenJava(MavenPublication) {
-			// add all the jars that should be included when publishing to maven
-			artifact(proguardFile) {
-				builtBy proguardJar
-			}
-			artifact(sourcesJar)
-			artifact javadocJar
-			artifact(file('src/main/resources/fabric-installer.json')) {
-				builtBy copyJson
-			}
-			artifact(file('src/main/resources/fabric-installer.launchwrapper.json')) {
-				builtBy copyJson
-				classifier = "launchwrapper"
-			}
-		}
-	}
-
-	// select the repositories you want to publish to
-	repositories {
-		if (ENV.MAVEN_URL) {
-			maven {
-				url ENV.MAVEN_URL
-				credentials {
-					username ENV.MAVEN_USERNAME
-					password ENV.MAVEN_PASSWORD
-				}
-			}
-		}
-	}
-}
-
-def getBranch() {
-	def ENV = System.getenv()
-	if (ENV.GITHUB_REF) {
-		def branch = ENV.GITHUB_REF
-		return branch.substring(branch.lastIndexOf("/") + 1)
-	}
-
-	return "unknown"
-}
-
-import org.kohsuke.github.GHReleaseBuilder
-import org.kohsuke.github.GitHub
-
-task github(dependsOn: publish) {
-	onlyIf {
-		ENV.GITHUB_TOKEN
-	}
-
-	doLast {
-		def github = GitHub.connectUsingOAuth(ENV.GITHUB_TOKEN as String)
-		def repository = github.getRepository(ENV.GITHUB_REPOSITORY)
-
-		def releaseBuilder = new GHReleaseBuilder(repository, version as String)
-		releaseBuilder.name("Fabric Loader $version")
-		releaseBuilder.body(ENV.CHANGELOG ?: "No changelog provided")
-		releaseBuilder.commitish(getBranch())
-		releaseBuilder.prerelease(false)
-
-		releaseBuilder.create()
-	}
-}
-
-// A task to ensure that the version being released has not already been released.
-task checkVersion {
-	doFirst {
-		def xml = new URL("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml").text
-		def metadata = new XmlSlurper().parseText(xml)
-		def versions = metadata.versioning.versions.version*.text();
-		if (versions.contains(version)) {
-			throw new RuntimeException("${version} has already been released!")
-		}
-	}
-}
-
-publish.mustRunAfter checkVersion
-github.mustRunAfter checkVersion
