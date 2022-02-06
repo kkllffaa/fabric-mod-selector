@@ -154,7 +154,7 @@ task fatJar(type: ShadowJar, dependsOn: getSat4jAbout) {
 	outputs.upToDateWhen { false }
 }
 
-File proguardFile = file("build/libs/fabric-mod-selector-${version}.jar")
+File proguardFile = file("build/libs/download-${version}.jar")
 
 import proguard.gradle.ProGuardTask
 task proguardJar(type: ProGuardTask, dependsOn: fatJar) {
