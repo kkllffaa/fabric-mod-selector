@@ -1,8 +1,14 @@
-fabric-loader
+fabric-mod-selector
 ===========
 
-The loader for mods under Fabric. It provides mod loading facilities and useful abstractions for other mods to use.
+Modified Fabric Loader that allow to select mods to load when game is starting
 
-## License
+## Install
 
-Licensed under the Apache License 2.0.
+open %appdata%/.minecraft/versions/version_name/version_name.json
+
+search for "net.fabricmc:fabric-loader"
+
+change name to kkllffaa.fabric-mod-selector.releases:download:1.0
+
+change url to https://github.com/
