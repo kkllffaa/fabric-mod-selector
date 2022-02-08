@@ -1,5 +1,6 @@
 package com.kkllffaa.fabricmodselector;
 
+import com.google.gson.Gson;
 import net.fabricmc.loader.impl.discovery.ModCandidate;
 
 import javax.swing.*;
@@ -7,16 +8,19 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.BufferedWriter;
 import java.io.File;
-import java.net.URLDecoder;
+import java.io.FileWriter;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Filter {
 	
-	public static final String VERSION = "1.0";
+	public static final String VERSION = "1.1";
 	
 	
 	public static void filter(List<ModCandidate> modCandidates, Map<String, Set<ModCandidate>> disabledmods) {
@@ -28,7 +32,6 @@ public class Filter {
 		
 		try (ClosableJFrame f = new ClosableJFrame("fabric mod selector by kkllffaa")) {
 			
-			
 			//region init
 			Object lock = new Object();
 			f.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
@@ -37,8 +40,7 @@ public class Filter {
 			Dimension size = Toolkit.getDefaultToolkit().getScreenSize();
 			f.setLocation((size.width - f.getWidth()) / 2, (size.height - f.getHeight()) / 2);
 			//endregion
-			
-			//region start exit
+			//region buttons
 			JButton exit = new JButton("exit game");
 			exit.setBounds(50, 100, 100, 40);
 			exit.addActionListener(e -> System.exit(0));
@@ -50,6 +52,12 @@ public class Filter {
 			update.setBounds(50, 50, 100, 40);
 			update.setEnabled(false);
 			f.add(update);
+			JButton save = new JButton("save");
+			save.setBounds(150, 50, 100, 40);
+			f.add(save);
+			JButton load = new JButton("load");
+			load.setBounds(150, 5, 100, 40);
+			f.add(load);
 			//endregion
 			//region modlist
 			final DefaultListModel<ModJCheckBox> listModel = new DefaultListModel<>();
@@ -85,21 +93,75 @@ public class Filter {
 				}
 			});
 			
+			//region save load
+			File savefile = null;
+			try {
+				savefile = new File(Objects.requireNonNull(Save.getmcjarlocation()).getParent() + "/h.json");
+			} catch (Exception ignored) {}
+			
+			if (savefile != null) {
+				File finalSavefile = savefile;
+				AtomicBoolean loadadded = new AtomicBoolean(false);
+				ActionListener loadaction = e -> {
+					try {
+						String json = new String(Files.readAllBytes(finalSavefile.toPath()));
+						
+						Save.ModListHolder modListHolder = new Gson().fromJson(json, Save.ModListHolder.class);
+						
+						
+						modListHolder.apply(list.getModel());
+						list.repaint();
+					} catch (Exception exception) { JOptionPane.showMessageDialog(f, exception); }
+				};
+				save.addActionListener(e -> {
+					
+					
+					Save.ModListHolder modListHolder = new Save.ModListHolder(list.getModel());
+					
+					
+					String json = new Gson().toJson(modListHolder);
+					
+					try (BufferedWriter writer = new BufferedWriter(new FileWriter(finalSavefile))) {
+						writer.write(json);
+						if (!loadadded.get()) {
+							load.addActionListener(loadaction);
+							load.setText("load");
+							load.setEnabled(true);
+							loadadded.set(true);
+						}
+					} catch (Exception exception) { JOptionPane.showMessageDialog(f, exception); }
+					
+				});
+				
+				
+				if (savefile.exists()) {
+					load.addActionListener(loadaction);
+					loadadded.set(true);
+				}
+				else {
+					load.setText("no save file found");
+					load.setEnabled(false);
+				}
+			} else {
+				String a = "filed to get save location";
+				save.setText(a);
+				load.setText(a);
+				save.setEnabled(false);
+				load.setEnabled(false);
+			}
+			//endregion
+			
+			
+			
+			
 			
 			Thread updatethread = new Thread(() -> {
-				String path;
-				
-				try {
-					path = Objects.requireNonNull(ClassLoader.getSystemClassLoader().getResource("net/minecraft/client/main/Main.class")).getPath();
-					path = path.substring(path.indexOf(":") + 1, path.indexOf("!"));
-					path = URLDecoder.decode(path, "UTF-8");
-					path = path.substring(1, path.length() - 4) + ".json";
-				} catch (Exception ignored) {
-					path = "";
+				File mcjar = Save.getmcjarlocation();
+				File a = null;
+				if (mcjar != null) {
+					a = new File(mcjar.toString().substring(0, mcjar.toString().length() - 4) + ".json");
 				}
-				
-				
-				Update u = Update.create(new File(path), 10);
+				Update u = Update.create(a, 10);
 				if (u == null) {
 					update.setText("cannot check for updates");
 				} else if (u.installed.equals(u.latest)) {
