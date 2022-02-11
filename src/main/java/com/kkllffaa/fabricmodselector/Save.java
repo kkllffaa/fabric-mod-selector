@@ -30,14 +30,14 @@ public class Save {
 			
 			for (int i = 0; i < modlist.getSize(); i++) {
 				
-				mods.add(new ModHolder(modlist.getElementAt(i).getCandidate(), modlist.getElementAt(i).isSelected()));
+				mods.add(new ModHolder(modlist.getElementAt(i).getSelected(), modlist.getElementAt(i).isSelected()));
 			}
 		}
 		
 		public void apply(ListModel<ModJCheckBox> modlist) {
 			for (int i = 0; i < modlist.getSize(); i++) {
 				for (ModHolder modHolder : mods) {
-					if (modHolder.match(modlist.getElementAt(i).getCandidate()))
+					if (modHolder.match(modlist.getElementAt(i).getSelected()))
 						modlist.getElementAt(i).setSelected(modHolder.enabled);
 				}
 			}

@@ -21,7 +21,8 @@ public class Update {
 	private Update(File mcjson, int numbersup) {
 		this.mcjson = mcjson;
 		installed = getversion();
-		latest = getlatest(installed, numbersup);
+		if (installed != null) latest = getlatest(installed, numbersup);
+		else latest = null;
 	}
 	public static Update create(File mcjson, int numbersup) {
 		if (mcjson == null || !mcjson.exists() || !mcjson.canRead()) return null;
@@ -82,7 +83,6 @@ public class Update {
 	}
 	public Version getversion() {
 		try {
-			//String input = Files.readString(mcjson.toPath());
 			String input = new String(Files.readAllBytes(mcjson.toPath()));
 			String[] splitted = input.split("\"");
 			

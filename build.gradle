@@ -35,7 +35,7 @@ allprojects {
 	def constantsSource1 = rootProject.file("src/main/java/com/kkllffaa/fabricmodselector/Filter.java").text
 
 	version = (constantsSource =~ /\s+VERSION\s*=\s*"(.*)";/)[0][1]
-	jarversion = (constantsSource1 =~ /\s+VERSION\s*=\s*"(.*)";/)[0][1]
+	jarversion = (ENV.GITHUB_ACTIONS ? (constantsSource1 =~ /\s+VERSION\s*=\s*"(.*)";/)[0][1] : "local")
 
 	repositories {
 		maven {
@@ -75,8 +75,9 @@ dependencies {
 	api 'net.fabricmc:tiny-mappings-parser:0.3.0+build.17'
 	api 'net.fabricmc:tiny-remapper:0.8.1'
 	api 'net.fabricmc:access-widener:2.1.0'
+    implementation 'org.jetbrains:annotations:20.1.0'
 
-	include 'org.ow2.sat4j:org.ow2.sat4j.core:2.3.6'
+    include 'org.ow2.sat4j:org.ow2.sat4j.core:2.3.6'
 	include 'org.ow2.sat4j:org.ow2.sat4j.pb:2.3.6'
 
 	testCompileOnly 'org.jetbrains:annotations:23.0.0'
