@@ -1,7 +1,5 @@
 package com.kkllffaa.fabricmodselector;
 
-import org.jetbrains.annotations.NotNull;
-
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;

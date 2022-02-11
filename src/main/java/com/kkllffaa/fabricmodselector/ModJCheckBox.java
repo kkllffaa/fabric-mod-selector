@@ -1,7 +1,6 @@
 package com.kkllffaa.fabricmodselector;
 
 import net.fabricmc.loader.impl.discovery.ModCandidate;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.ArrayList;
