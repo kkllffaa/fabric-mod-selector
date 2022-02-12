@@ -50,7 +50,6 @@ public class ListPanelModules extends ListPanel {
 		public CheckBox(ModCandidate candidate, boolean enabled, boolean newmod) {
 			super(candidate.getId() + "  " + candidate.getVersion().getFriendlyString(), enabled, newmod);
 			this.candidate = candidate;
-			setSelected(enabled);
 		}
 	}
 }

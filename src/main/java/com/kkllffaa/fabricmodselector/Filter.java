@@ -31,7 +31,7 @@ public class Filter {
 	
 	public static void filter(List<ModCandidate> modCandidates, FabricLoaderImpl loader, Map<String, Set<ModCandidate>> disabledmods, boolean isdevelopment) {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (Exception ex) { ex.printStackTrace(); }
+		} catch (Exception e) { JOptionPane.showMessageDialog(null, e, "error",JOptionPane.ERROR_MESSAGE); }
 		
 		try (ClosableJFrame f = new ClosableJFrame("fabric mod selector by kkllffaa v" + VERSION)) {
 			
@@ -88,7 +88,7 @@ public class Filter {
 								modfiles.add(((File) fileobj));
 							}
 						}
-					} catch (Exception e) { JOptionPane.showMessageDialog(f, e); }
+					} catch (Exception e) { JOptionPane.showMessageDialog(null, e); }
 				}
 				if (!modfiles.isEmpty()) { try {
 						ModDiscoverer discoverer = new ModDiscoverer();
@@ -182,7 +182,7 @@ public class Filter {
 			
 			
 			
-			Thread updatethread = new Thread(() -> update(f, update));
+			Thread updatethread = new Thread(() -> update(update));
 			updatethread.start();
 			
 			
@@ -193,8 +193,6 @@ public class Filter {
 				updatethread.stop();
 			
 		}
-		
-		
 	}
 	
 	public static boolean useMod(ModCandidate candidate) { return !candidate.isBuiltin() && !candidate.getId().equals("fabricloader"); }
@@ -213,7 +211,7 @@ public class Filter {
 	
 	public static <T> T lambdasupplier(Supplier<T> supplier) { return supplier.get(); }
 	
-	private static void update(JFrame f, JButton update) {
+	private static void update(JButton update) {
 		File mcjar = Save.getmcjarlocation();
 		File a = null;
 		if (mcjar != null) {
@@ -231,7 +229,7 @@ public class Filter {
 			update.setEnabled(true);
 			update.addActionListener(e -> {
 				
-				int option = JOptionPane.showOptionDialog(f, "to apply " + u.latest + " update restart game and launcher", "update",
+				int option = JOptionPane.showOptionDialog(null, "to apply " + u.latest + " update restart game and launcher", "update",
 						JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null,
 						new String[]{"cancel update", "update and restart later", "update and exit"}, null);
 				switch (option) {
@@ -242,11 +240,11 @@ public class Filter {
 							for (ActionListener actionListener : update.getActionListeners()) {
 								update.removeActionListener(actionListener);
 							}
-						} else JOptionPane.showMessageDialog(f, "error while updating");
+						} else JOptionPane.showMessageDialog(null, "error while updating");
 						break;
 					case 2:
 						if (u.updatefile(u.latest)) System.exit(0);
-						else JOptionPane.showMessageDialog(f, "error while updating");
+						else JOptionPane.showMessageDialog(null, "error while updating");
 						break;
 				}
 			});
