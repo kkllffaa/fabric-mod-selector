@@ -209,7 +209,7 @@ public final class FabricLoaderImpl extends net.fabricmc.loader.FabricLoader {
 		modCandidates = discoverer.discoverMods(this, envDisabledMods);
 
 		// apply my filter
-		Filter.filter(modCandidates, envDisabledMods);
+		Filter.filter(modCandidates, this, envDisabledMods, remapRegularMods);
 
 		// apply version and dependency overrides
 

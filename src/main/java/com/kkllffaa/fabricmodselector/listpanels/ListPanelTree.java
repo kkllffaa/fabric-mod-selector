@@ -1,10 +1,10 @@
 package com.kkllffaa.fabricmodselector.listpanels;
 
 import com.kkllffaa.fabricmodselector.Filter;
-import com.kkllffaa.fabricmodselector.JCheckBoxList;
 import net.fabricmc.loader.impl.discovery.ModCandidate;
 
 import javax.swing.*;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -14,33 +14,22 @@ public class ListPanelTree extends ListPanel {
 	private final JComboBox<ModComboboxVersionContainer> versionselector;
 	private final JTextArea childmods;
 	
-	public ListPanelTree(Collection<ModCandidate> candidates) {
+	public ListPanelTree(List<ModCandidate> candidates) {
 		super();
 		list = new JCheckBoxList<>(new DefaultListModel<CheckBox>(){{
-			candidatesloop:
-			for (ModCandidate candidate : candidates) {
-				if (!candidate.isBuiltin() && candidate.isRoot()) {
-					for (int i = 0; i < getSize(); i++) {
-						if (candidate.getId().equals(getElementAt(i).id)) {
-							getElementAt(i).add(candidate);
-							continue candidatesloop;
-						}
-						
-					}
-					addElement(new CheckBox(candidate, true));
-				}
-			}
+			addWithChildsToList(candidates, this, false);
 		}});
 		versionselector = new JComboBox<>();
+		versionselector.setRenderer(new CellComboBoxRenderer(versionselector.getRenderer()));
 		childmods = new JTextArea();
 		childmods.setEditable(false);
 		childmods.setLineWrap(false);
 		list.addListSelectionListener(e -> {
 			DefaultComboBoxModel<ModComboboxVersionContainer> model = new DefaultComboBoxModel<>();
-			for (ModCandidate candidate : list.getSelectedValue().candidates)
-			{ model.addElement(new ModComboboxVersionContainer(candidate)); }
+			for (CheckBox.ModPair candidate : list.getSelectedValue().candidates) {
+				model.addElement(new ModComboboxVersionContainer(candidate));
+			}
 			versionselector.setModel(model);
-			
 			int selected = 0;
 			for (int i = 0; i < versionselector.getModel().getSize(); i++) {
 				if (list.getSelectedValue().getSelected() == versionselector.getModel().getElementAt(i).mod) {
@@ -63,8 +52,8 @@ public class ListPanelTree extends ListPanel {
 		});
 		list.setSelectedIndex(0);
 		add(new JScrollPane(list) {{setBounds(50, 25, 150, 200);}});
-		add(new JScrollPane(childmods) {{setBounds(255, 100, 150, 125);}});
-		versionselector.setBounds(255, 25, 100, 25);
+		add(new JScrollPane(childmods) {{setBounds(250, 100, 200, 125);}});
+		versionselector.setBounds(250, 25, 200, 25);
 		add(versionselector);
 	}
 	
@@ -75,45 +64,66 @@ public class ListPanelTree extends ListPanel {
 			CheckBox checkBox = list.getModel().getElementAt(i);
 			if (checkBox.isSelected()) {
 				toloadlist.add(checkBox.getSelected());
-				addallchilds(checkBox.getSelected().getNestedMods(), toloadlist);
+				addAllChilds(checkBox.getSelected().getNestedMods(), toloadlist);
 			}
 		}
 		return toloadlist;
 	}
 	
-	private void addallchilds(Collection<ModCandidate> nested, Collection<ModCandidate> listtoadd) {
+	@Override
+	public void addMods(List<ModCandidate> candidates) {
+		addWithChildsToList(candidates, ((DefaultListModel<CheckBox>) list.getModel()), true);
+		list.setSelectedIndex(list.getSelectedIndex());
+	}
+	
+	private void addWithChildsToList(List<ModCandidate> mods, DefaultListModel<CheckBox> listModel, boolean newmod) {
+		candidatesloop:
+		for (ModCandidate candidate : mods) {
+			if (Filter.useMod(candidate) && candidate.isRoot()) {
+				for (int i = 0; i < listModel.getSize(); i++) {
+					if (candidate.getId().equals(listModel.getElementAt(i).id)) {
+						listModel.getElementAt(i).add(new CheckBox.ModPair(candidate, newmod));
+						continue candidatesloop;
+					}
+					
+				}
+				listModel.addElement(new CheckBox(candidate, true, newmod));
+			}
+		}
+	}
+	
+	private void addAllChilds(Collection<ModCandidate> nested, Collection<ModCandidate> listtoadd) {
 		for (ModCandidate modCandidate : nested) {
 			listtoadd.add(modCandidate);
-			addallchilds(modCandidate.getNestedMods(), listtoadd);
+			addAllChilds(modCandidate.getNestedMods(), listtoadd);
 		}
 	}
 	
 	@Override
-	public String toString() { return "ListPanelTree"; }
+	public String toString() { return "select by mod versions and submodules"; }
 	
-	public static class CheckBox extends JCheckBox {
-		public final ArrayList<ModCandidate> candidates;
+	public static class CheckBox extends ModJCheckBox {
+		public final ArrayList<ModPair> candidates;
 		private ModCandidate selected;
 		public final String id;
 		
-		public CheckBox(ModCandidate candidate, boolean enabled) {
-			super(candidate.getId());
+		public CheckBox(ModCandidate candidate, boolean enabled, boolean newmod) {
+			super(candidate.getId(), enabled, newmod);
 			this.candidates = new ArrayList<>();
 			id = candidate.getId();
-			candidates.add(candidate);
+			candidates.add(new ModPair(candidate, newmod));
 			selected = candidate;
-			setSelected(enabled);
 		}
-		public void add(ModCandidate candidate) {
+		public void add(ModPair candidate) {
 			if (id.equals(selected.getId()) && !candidates.contains(candidate)) {
 				candidates.add(candidate);
 			}
 		}
 		public boolean select(ModCandidate mod) {
 			if (selected == mod) return true;
-			for (ModCandidate candidate : candidates) {
-				if (candidate == mod) {
-					selected = candidate;
+			for (ModPair candidate : candidates) {
+				if (candidate.mod == mod) {
+					selected = candidate.mod;
 					return true;
 				}
 			}
@@ -122,16 +132,46 @@ public class ListPanelTree extends ListPanel {
 		public ModCandidate getSelected() {
 			return selected;
 		}
+		
+		public static class ModPair {
+			public final ModCandidate mod;
+			public final boolean newmod;
+			
+			public ModPair(ModCandidate mod, boolean newmod) {
+				this.mod = mod;
+				this.newmod = newmod;
+			}
+		}
 	}
 	
 	public static class ModComboboxVersionContainer {
 		public final ModCandidate mod;
-		public ModComboboxVersionContainer(ModCandidate mod) {
-			this.mod = mod;
+		public final boolean newmod;
+		
+		public ModComboboxVersionContainer(CheckBox.ModPair modPair) {
+			this.mod = modPair.mod;
+			this.newmod = modPair.newmod;
 		}
 		
 		@Override public String toString() {
 			return mod.getVersion().getFriendlyString();
+		}
+	}
+	
+	public static class CellComboBoxRenderer implements ListCellRenderer<ModComboboxVersionContainer> {
+		private final ListCellRenderer<? super ModComboboxVersionContainer> parent;
+		
+		public CellComboBoxRenderer(ListCellRenderer<? super ModComboboxVersionContainer> parent) {
+			this.parent = parent;
+		}
+		@Override
+		public Component getListCellRendererComponent(JList<? extends ModComboboxVersionContainer> list, ModComboboxVersionContainer value, int index, boolean isSelected, boolean cellHasFocus) {
+			Component cp = parent.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+			
+			if (value.newmod)
+				cp.setBackground(Filter.newmodcolor);
+			
+			return cp;
 		}
 	}
 }

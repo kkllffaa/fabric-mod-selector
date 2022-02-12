@@ -1,24 +1,23 @@
 package com.kkllffaa.fabricmodselector.listpanels;
 
-import com.kkllffaa.fabricmodselector.JCheckBoxList;
+import com.kkllffaa.fabricmodselector.Filter;
 import net.fabricmc.loader.impl.discovery.ModCandidate;
 
 import javax.swing.*;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public class ListPanelModules extends ListPanel {
 	private final JCheckBoxList<CheckBox> list;
 	
-	public ListPanelModules(Collection<ModCandidate> candidates) {
+	public ListPanelModules(List<ModCandidate> candidates) {
 		super();
 		list = new JCheckBoxList<>(new DefaultListModel<CheckBox>(){{
 			for (ModCandidate candidate : candidates) {
-				if (!candidate.isBuiltin()) addElement(new CheckBox(candidate, true));
+				if (Filter.useMod(candidate)) addElement(new CheckBox(candidate, true, false));
 			}
 		}});
-		add(new JScrollPane(list) {{setBounds(50, 25, 350, 200);}});
+		add(new JScrollPane(list) {{setBounds(50, 25, 400, 200);}});
 	}
 	
 	@Override
@@ -28,17 +27,28 @@ public class ListPanelModules extends ListPanel {
 			CheckBox checkBox = list.getModel().getElementAt(i);
 			if (checkBox.isSelected()) toloadlist.add(checkBox.candidate);
 		}
+		
 		return toloadlist;
 	}
 	
 	@Override
-	public String toString() { return "ListPanelModules"; }
+	public void addMods(List<ModCandidate> candidates) {
+		DefaultListModel<CheckBox> model = ((DefaultListModel<CheckBox>) list.getModel());
+		for (ModCandidate candidate : candidates) {
+			if (Filter.useMod(candidate)) {
+				model.addElement(new CheckBox(candidate, true, true));
+			}
+		}
+	}
 	
-	public static class CheckBox extends JCheckBox {
+	@Override
+	public String toString() { return "select by modules"; }
+	
+	public static class CheckBox extends ModJCheckBox {
 		public final ModCandidate candidate;
 		
-		public CheckBox(ModCandidate candidate, boolean enabled) {
-			super(candidate.getId() + "  " + candidate.getVersion().getFriendlyString());
+		public CheckBox(ModCandidate candidate, boolean enabled, boolean newmod) {
+			super(candidate.getId() + "  " + candidate.getVersion().getFriendlyString(), enabled, newmod);
 			this.candidate = candidate;
 			setSelected(enabled);
 		}

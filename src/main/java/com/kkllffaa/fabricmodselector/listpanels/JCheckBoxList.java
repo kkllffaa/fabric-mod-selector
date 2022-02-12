@@ -1,4 +1,7 @@
-package com.kkllffaa.fabricmodselector;
+package com.kkllffaa.fabricmodselector.listpanels;
+
+import com.kkllffaa.fabricmodselector.Filter;
+import com.kkllffaa.fabricmodselector.listpanels.ModJCheckBox;
 
 import javax.swing.*;
 import javax.swing.border.Border;
@@ -8,9 +11,8 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.function.Consumer;
 
-public class JCheckBoxList<T extends JCheckBox> extends JList<T> {
+public class JCheckBoxList<T extends ModJCheckBox> extends JList<T> {
 	protected static Border noFocusBorder = new EmptyBorder(1, 1, 1, 1);
 	
 	public JCheckBoxList() {
@@ -52,25 +54,19 @@ public class JCheckBoxList<T extends JCheckBox> extends JList<T> {
 	}
 	
 	protected class CellRenderer implements ListCellRenderer<T> {
-		public Component getListCellRendererComponent(
-				JList<? extends T> list, T value, int index,
-				boolean isSelected, boolean cellHasFocus) {
+		@Override
+		public Component getListCellRendererComponent(JList<? extends T> list, T value, int index, boolean isSelected, boolean cellHasFocus) {
 			
 			//Drawing checkbox, change the appearance here
-			value.setBackground(isSelected ? getSelectionBackground() : getBackground());
+			value.setBackground(isSelected ? getSelectionBackground() : value.newmod ? Filter.newmodcolor : getBackground());
 			value.setForeground(isSelected ? getSelectionForeground() : getForeground());
+			
 			value.setEnabled(isEnabled());
 			value.setFont(getFont());
 			value.setFocusPainted(false);
 			value.setBorderPainted(true);
 			value.setBorder(isSelected ? UIManager.getBorder("List.focusCellHighlightBorder") : noFocusBorder);
 			return value;
-		}
-	}
-	
-	public void foreachmodel(Consumer<T> action) {
-		for (int i = 0; i < getModel().getSize(); i++) {
-			action.accept(getModel().getElementAt(i));
 		}
 	}
 }

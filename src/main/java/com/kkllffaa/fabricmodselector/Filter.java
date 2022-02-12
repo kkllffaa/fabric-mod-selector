@@ -3,10 +3,18 @@ package com.kkllffaa.fabricmodselector;
 import com.kkllffaa.fabricmodselector.listpanels.ListPanel;
 import com.kkllffaa.fabricmodselector.listpanels.ListPanelModules;
 import com.kkllffaa.fabricmodselector.listpanels.ListPanelTree;
+import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.discovery.ModCandidate;
+import net.fabricmc.loader.impl.discovery.ModDiscoverer;
+import net.fabricmc.loader.impl.discovery.ModResolutionException;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetDropEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -17,9 +25,11 @@ import java.util.function.Supplier;
 
 public class Filter {
 	
-	public static final String VERSION = "1.3";
+	public static final String VERSION = "1.4";
 	
-	public static void filter(List<ModCandidate> modCandidates, Map<String, Set<ModCandidate>> disabledmods) {
+	public static final Color newmodcolor = new Color(0, 200, 100);
+	
+	public static void filter(List<ModCandidate> modCandidates, FabricLoaderImpl loader, Map<String, Set<ModCandidate>> disabledmods, boolean isdevelopment) {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (Exception ex) { ex.printStackTrace(); }
 		
@@ -35,7 +45,7 @@ public class Filter {
 			
 			f.addButton("exit game", 50, 100, 100, 40).addActionListener(e -> System.exit(0));
 			JButton start = f.addButton("start game", 150, 100, 100, 40);
-			JButton update = f.addButton("checking for updates", 50, 50, 100, 40, false);
+			JButton update = f.addButton("checking for updates", 50, 50, 200, 40, false);
 			//JButton save = f.addButton("save", 150, 50, 100, 40);
 			//JButton load = f.addButton("load", 150, 5, 100, 40);
 			//endregion
@@ -46,7 +56,7 @@ public class Filter {
 					new ListPanelModules(modCandidates)
 			};
 			JComboBox<ListPanel> panel = new JComboBox<>(panelarray);
-			panel.setBounds(50, 150, 300, 25);
+			panel.setBounds(50, 150, 250, 25);
 			panel.addActionListener(e -> {
 				for (int i = 0; i < panel.getModel().getSize(); i++) {
 					panel.getModel().getElementAt(i).setVisible(false);
@@ -62,30 +72,47 @@ public class Filter {
 				f.add(listPanel);
 			}
 			//endregion
+			//region dragdropmods
+			JLabel dragdropmods = new JLabel("drop mod jar here to load", SwingConstants.CENTER);
+			dragdropmods.setDropTarget(new DropTarget() {public synchronized void drop(DropTargetDropEvent event) {
+				event.acceptDrop(DnDConstants.ACTION_COPY);
+				
+				Transferable transferable = event.getTransferable();
+				DataFlavor[] flavors = transferable.getTransferDataFlavors();
+				
+				List<File> modfiles = new ArrayList<>();
+				
+				for (DataFlavor flavor : flavors) { try {
+						if (flavor.isFlavorJavaFileListType()) {
+							for (Object fileobj : (List<?>) transferable.getTransferData(flavor)) {
+								modfiles.add(((File) fileobj));
+							}
+						}
+					} catch (Exception e) { JOptionPane.showMessageDialog(f, e); }
+				}
+				if (!modfiles.isEmpty()) { try {
+						ModDiscoverer discoverer = new ModDiscoverer();
+						discoverer.addCandidateFinder(new FileModCandidateFinder(modfiles, isdevelopment));
+						List<ModCandidate> newcandidates = discoverer.discoverMods(loader, disabledmods);
+						newcandidates.removeIf(candidate -> !useMod(candidate));
+						modCandidates.addAll(newcandidates);
+						for (int i = 0; i < panel.getModel().getSize(); i++) {
+							ListPanel p = panel.getItemAt(i);
+							p.addMods(newcandidates);
+						}
+					} catch (ModResolutionException e) { JOptionPane.showMessageDialog(f, e); }
+				}
+			}});
+			dragdropmods.setBounds(350, 20, 200, 100);
+			dragdropmods.setOpaque(true);
+			dragdropmods.setBackground(new Color(200, 100, 100));
+			f.add(dragdropmods);
+			//endregion
 			
 			start.addActionListener(e -> {
-				
-				JOptionPane.showMessageDialog(null, lambdasupplier(() -> {
-					StringBuilder j = new StringBuilder();
-					for (ModCandidate modCandidate : modCandidates) {
-						j.append(modCandidate.getId()).append(" : ").append(modCandidate.getVersion()).append("\n");
-					}
-					return j.toString();
-				}));
-				
-				
+				//JOptionPane.showMessageDialog(null, listmods(modCandidates));
 				listfromcombobox(panel).apply(modCandidates);
-				
-				
-				
-				JOptionPane.showMessageDialog(null, lambdasupplier(() -> {
-					StringBuilder j = new StringBuilder();
-					for (ModCandidate modCandidate : modCandidates) {
-						j.append(modCandidate.getId()).append(" : ").append(modCandidate.getVersion()).append("\n");
-					}
-					return j.toString();
-				}));
-				
+				//JOptionPane.showMessageDialog(null, listmods(modCandidates));
 				
 				f.closenormal();
 			});
@@ -159,10 +186,8 @@ public class Filter {
 			updatethread.start();
 			
 			
-			//region thread lock
 			f.addWindowListener(new WindowAdapter() { @Override public void windowClosing(WindowEvent e) { f.closenormal(); }});
 			f.waittoclose();
-			//endregion
 			
 			if (updatethread.isAlive()) //noinspection deprecation
 				updatethread.stop();
@@ -170,6 +195,16 @@ public class Filter {
 		}
 		
 		
+	}
+	
+	public static boolean useMod(ModCandidate candidate) { return !candidate.isBuiltin() && !candidate.getId().equals("fabricloader"); }
+	
+	public static String listmods(Collection<ModCandidate> mods) {
+		StringBuilder j = new StringBuilder();
+		for (ModCandidate modCandidate : mods) {
+			j.append(modCandidate.getId()).append(" : ").append(modCandidate.getVersion()).append("\n");
+		}
+		return j.toString();
 	}
 	
 	public static ListPanel listfromcombobox(JComboBox<ListPanel> panelComboBox) {
