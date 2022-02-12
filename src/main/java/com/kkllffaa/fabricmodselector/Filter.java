@@ -1,6 +1,8 @@
 package com.kkllffaa.fabricmodselector;
 
-import com.google.gson.Gson;
+import com.kkllffaa.fabricmodselector.listpanels.ListPanel;
+import com.kkllffaa.fabricmodselector.listpanels.ListPanelModules;
+import com.kkllffaa.fabricmodselector.listpanels.ListPanelTree;
 import net.fabricmc.loader.impl.discovery.ModCandidate;
 
 import javax.swing.*;
@@ -8,18 +10,14 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 public class Filter {
 	
-	public static final String VERSION = "1.2";
+	public static final String VERSION = "1.3";
 	
 	public static void filter(List<ModCandidate> modCandidates, Map<String, Set<ModCandidate>> disabledmods) {
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -42,85 +40,31 @@ public class Filter {
 			//JButton load = f.addButton("load", 150, 5, 100, 40);
 			//endregion
 			//region modlist
-			/*
+			
 			ListPanel[] panelarray = {
-					new ListPanelTree(),
-					new ListPanelModules()
+					new ListPanelTree(modCandidates),
+					new ListPanelModules(modCandidates)
 			};
 			JComboBox<ListPanel> panel = new JComboBox<>(panelarray);
-			*/
-			
-			
-			JPanel panel = new JPanel();
-			panel.setLayout(null);
-			panel.setBounds(50, 200, 400, 250);
-			panel.setBackground(new Color(200, 200, 200));
-			
-			
-			JCheckBoxList list = new JCheckBoxList(new DefaultListModel<ModJCheckBox>(){{
-				modCandidates.forEach(candidate -> {
-					if (!candidate.isBuiltin() && candidate.isRoot()) {
-						for (int i = 0; i < getSize(); i++) {
-							if (candidate.getId().equals(getElementAt(i).id)) {
-								getElementAt(i).add(candidate);
-								return;
-							}
-						}
-						addElement(new ModJCheckBox(candidate, true));
-					}
-					
-				});
-			}});
-			
-			panel.add(new JScrollPane(list) {{setBounds(50, 25, 150, 200);}});
-			
-			JComboBox<ModComboboxVersionContainer> versionselector = new JComboBox<>();
-			versionselector.setBounds(225, 25, 100, 25);
-			
-
-			list.addListSelectionListener(e -> {
-				DefaultComboBoxModel<ModComboboxVersionContainer> model = new DefaultComboBoxModel<>();
-				list.getSelectedValue().candidates.forEach(candidate ->
-						model.addElement(new ModComboboxVersionContainer(candidate)));
-				versionselector.setModel(model);
-				int i = 0;
-				
-				for (int j = 0; j < versionselector.getModel().getSize(); j++) {
-					if (list.getSelectedValue().getSelected() == versionselector.getModel().getElementAt(j).getMod()) {
-						i = j;
-						break;
-					}
+			panel.setBounds(50, 150, 300, 25);
+			panel.addActionListener(e -> {
+				for (int i = 0; i < panel.getModel().getSize(); i++) {
+					panel.getModel().getElementAt(i).setVisible(false);
 				}
-				
-				
-				versionselector.setSelectedIndex(i);
+				listfromcombobox(panel).setVisible(true);
 			});
-			panel.add(versionselector);
-			
-			JTextArea childmods = new JTextArea();
-			childmods.setEditable(false);
-			childmods.setLineWrap(false);
-			versionselector.addActionListener(e -> {
-				if (list.getSelectedValue().select(versionselector.getModel().getElementAt(versionselector.getSelectedIndex()).getMod())) {
-					childmods.setText(lambdasupplier(() -> {
-						StringBuilder a = new StringBuilder();
-						if (!list.getSelectedValue().getSelected().getNestedMods().isEmpty()) {
-							list.getSelectedValue().getSelected().getNestedMods().forEach(candidate ->
-									a.append(candidate.getId()).append(" ").append(candidate.getVersion()).append("\n"));
-						}
-						return a.toString();
-					}));
-				}
-
-			});
-			list.setSelectedIndex(0);
-			panel.add(new JScrollPane(childmods) {{setBounds(225, 100, 150, 125);}});
+			panel.setSelectedIndex(0);
 			
 			f.add(panel);
+			for (ListPanel listPanel : panelarray) {
+				listPanel.setBounds(50, 200, 500, 250);
+				listPanel.setBackground(new Color(200, 200, 200));
+				f.add(listPanel);
+			}
 			//endregion
 			
 			start.addActionListener(e -> {
-				/*
+				
 				JOptionPane.showMessageDialog(null, lambdasupplier(() -> {
 					StringBuilder j = new StringBuilder();
 					for (ModCandidate modCandidate : modCandidates) {
@@ -128,78 +72,12 @@ public class Filter {
 					}
 					return j.toString();
 				}));
-				*/
 				
-				List<ModCandidate> toloadlist = new ArrayList<>();
-				for (int i = 0; i < list.getModel().getSize(); i++) {
-					ModJCheckBox checkBox = list.getModel().getElementAt(i);
-					if (checkBox.isSelected()) {
-						toloadlist.add(checkBox.getSelected());
-						new Object() { void addtolist(Collection<ModCandidate> nested) {
-							if (!nested.isEmpty()) {
-								toloadlist.addAll(nested);
-								for (ModCandidate nestedmod : nested) {
-									addtolist(nestedmod.getNestedMods());
-								}
-							}
-						}}.addtolist(checkBox.getSelected().getNestedMods());
-					}
-				}
+				
+				listfromcombobox(panel).apply(modCandidates);
 				
 				
 				
-				modCandidates.removeIf(candidate -> !candidate.isBuiltin() && !toloadlist.contains(candidate));
-				
-				/*
-				//todo
-				modCandidates.removeIf(candidate -> {
-					if (candidate.isBuiltin()) return false;
-					
-					for (int i = 0; i < list.getModel().getSize(); i++) {
-						ModJCheckBox checkBox = list.getModel().getElementAt(i);
-						if (candidate.isRoot() && checkBox.id.equals(candidate.getId())) {
-							return checkBox.isSelected() && checkBox.getSelected() == candidate;
-						} else if (new Object() { boolean disable(Collection<ModCandidate> candidates) {
-							
-							for (ModCandidate modCandidate : candidates) {
-								if (modCandidate.isRoot() && checkBox.id.equals(modCandidate.getId())) {
-									return modCandidate == checkBox.getSelected() && checkBox.isSelected();
-								} else if (disable(modCandidate.getParentMods())) return true;
-							}
-							return false;
-							
-						}}.disable(candidate.getParentMods())) {
-							return true;
-						}
-					}
-					return false;
-				});
-				
-				//todo
-				list.foreachmodel(modJCheckBox -> {
-					if (!modJCheckBox.isSelected()) {
-						modCandidates.removeIf(candidate -> {
-							if (!modJCheckBox.id.equals(candidate.getId())) return false;
-							if (candidate.isBuiltin()) return false;
-							if (candidate.isRoot()) {
-								return candidate != modJCheckBox.getSelected();
-							} else {
-								return new Object() { boolean disable(Collection<ModCandidate> candidates) {
-									for (ModCandidate modCandidate : candidates) {
-										if (modCandidate.isRoot()) {
-											return modCandidate == modJCheckBox.getSelected();
-										} else if (disable(modCandidate.getParentMods())) return true;
-									}
-									return false;
-								}}.disable(candidate.getParentMods());
-							}
-						});
-					}
-				});
-				
-				*/
-				
-				/*
 				JOptionPane.showMessageDialog(null, lambdasupplier(() -> {
 					StringBuilder j = new StringBuilder();
 					for (ModCandidate modCandidate : modCandidates) {
@@ -207,7 +85,7 @@ public class Filter {
 					}
 					return j.toString();
 				}));
-				*/
+				
 				
 				f.closenormal();
 			});
@@ -292,6 +170,10 @@ public class Filter {
 		}
 		
 		
+	}
+	
+	public static ListPanel listfromcombobox(JComboBox<ListPanel> panelComboBox) {
+		return panelComboBox.getModel().getElementAt(panelComboBox.getSelectedIndex());
 	}
 	
 	public static <T> T lambdasupplier(Supplier<T> supplier) { return supplier.get(); }

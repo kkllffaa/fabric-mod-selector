@@ -8,17 +8,14 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.Iterator;
-import java.util.Spliterator;
 import java.util.function.Consumer;
 
-public class JCheckBoxList extends JList<ModJCheckBox> {
+public class JCheckBoxList<T extends JCheckBox> extends JList<T> {
 	protected static Border noFocusBorder = new EmptyBorder(1, 1, 1, 1);
 	
 	public JCheckBoxList() {
 		setCellRenderer(new CellRenderer());
-		addMouseListener(new MouseAdapter() {
-			public void mousePressed(MouseEvent e) {
+		addMouseListener(new MouseAdapter() { @Override public void mousePressed(MouseEvent e) {
 				int index = locationToIndex(e.getPoint());
 				if (index != -1) {
 					grabFocus();
@@ -34,9 +31,7 @@ public class JCheckBoxList extends JList<ModJCheckBox> {
 				}
 			}
 		});
-		addKeyListener(new KeyAdapter() {
-			@Override
-			public void keyPressed(KeyEvent e) {
+		addKeyListener(new KeyAdapter() { @Override public void keyPressed(KeyEvent e) {
 				int index = getSelectedIndex();
 				if (index != -1 && e.getKeyCode() == KeyEvent.VK_SPACE) {
 					boolean newVal = !getModel().getElementAt(index).isSelected();
@@ -51,14 +46,14 @@ public class JCheckBoxList extends JList<ModJCheckBox> {
 		setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 	}
 	
-	public JCheckBoxList(ListModel<ModJCheckBox> model){
+	public JCheckBoxList(ListModel<T> model){
 		this();
 		setModel(model);
 	}
 	
-	protected class CellRenderer implements ListCellRenderer<ModJCheckBox> {
+	protected class CellRenderer implements ListCellRenderer<T> {
 		public Component getListCellRendererComponent(
-				JList<? extends ModJCheckBox> list, ModJCheckBox value, int index,
+				JList<? extends T> list, T value, int index,
 				boolean isSelected, boolean cellHasFocus) {
 			
 			//Drawing checkbox, change the appearance here
@@ -73,7 +68,7 @@ public class JCheckBoxList extends JList<ModJCheckBox> {
 		}
 	}
 	
-	public void foreachmodel(Consumer<ModJCheckBox> action) {
+	public void foreachmodel(Consumer<T> action) {
 		for (int i = 0; i < getModel().getSize(); i++) {
 			action.accept(getModel().getElementAt(i));
 		}

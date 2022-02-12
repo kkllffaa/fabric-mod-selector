@@ -24,21 +24,21 @@ public class Save {
 	public static class ModListHolder {
 		public final List<ModHolder> mods;
 		
-		public ModListHolder(ListModel<ModJCheckBox> modlist) {
+		public ModListHolder(ListModel<JCheckBox> modlist) {
 			mods = new ArrayList<>();
 			
 			
 			for (int i = 0; i < modlist.getSize(); i++) {
 				
-				mods.add(new ModHolder(modlist.getElementAt(i).getSelected(), modlist.getElementAt(i).isSelected()));
+				//mods.add(new ModHolder(modlist.getElementAt(i).getSelected(), modlist.getElementAt(i).isSelected()));
 			}
 		}
 		
-		public void apply(ListModel<ModJCheckBox> modlist) {
+		public void apply(ListModel<JCheckBox> modlist) {
 			for (int i = 0; i < modlist.getSize(); i++) {
 				for (ModHolder modHolder : mods) {
-					if (modHolder.match(modlist.getElementAt(i).getSelected()))
-						modlist.getElementAt(i).setSelected(modHolder.enabled);
+					//if (modHolder.match(modlist.getElementAt(i).getSelected()))
+					//	modlist.getElementAt(i).setSelected(modHolder.enabled);
 				}
 			}
 		}
