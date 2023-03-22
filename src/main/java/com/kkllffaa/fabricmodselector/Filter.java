@@ -8,6 +8,11 @@ import net.fabricmc.loader.impl.discovery.ModCandidate;
 import net.fabricmc.loader.impl.discovery.ModDiscoverer;
 import net.fabricmc.loader.impl.discovery.ModResolutionException;
 
+import net.fabricmc.loader.impl.metadata.VersionOverrides;
+import net.fabricmc.loader.impl.metadata.DependencyOverrides;
+
+
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
@@ -25,11 +30,20 @@ import java.util.function.Supplier;
 
 public class Filter {
 	
-	public static final String VERSION = "1.4";
+	public static final String VERSION = "1.5";
 	
 	public static final Color newmodcolor = new Color(0, 200, 100);
 	
-	public static void filter(List<ModCandidate> modCandidates, FabricLoaderImpl loader, Map<String, Set<ModCandidate>> disabledmods, boolean isdevelopment) {
+	public static void filter(
+		List<ModCandidate> modCandidates,
+		FabricLoaderImpl loader,
+		Map<String, Set<ModCandidate>> disabledmods,
+		boolean isdevelopment,
+		VersionOverrides versionOverrides,
+		DependencyOverrides depOverrides
+		) {
+
+
 		try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (Exception e) { JOptionPane.showMessageDialog(null, e, "error",JOptionPane.ERROR_MESSAGE); }
 		
@@ -91,7 +105,7 @@ public class Filter {
 					} catch (Exception e) { JOptionPane.showMessageDialog(null, e); }
 				}
 				if (!modfiles.isEmpty()) { try {
-						ModDiscoverer discoverer = new ModDiscoverer();
+						ModDiscoverer discoverer = new ModDiscoverer(versionOverrides, depOverrides);
 						discoverer.addCandidateFinder(new FileModCandidateFinder(modfiles, isdevelopment));
 						List<ModCandidate> newcandidates = discoverer.discoverMods(loader, disabledmods);
 						newcandidates.removeIf(candidate -> !useMod(candidate));
