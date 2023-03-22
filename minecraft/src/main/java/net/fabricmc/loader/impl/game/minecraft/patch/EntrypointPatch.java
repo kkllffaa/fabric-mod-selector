@@ -35,13 +35,27 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
 import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.api.VersionParsingException;
+import net.fabricmc.loader.api.metadata.version.VersionPredicate;
 import net.fabricmc.loader.impl.game.minecraft.Hooks;
+import net.fabricmc.loader.impl.game.minecraft.MinecraftGameProvider;
 import net.fabricmc.loader.impl.game.patch.GamePatch;
 import net.fabricmc.loader.impl.launch.FabricLauncher;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
+import net.fabricmc.loader.impl.util.version.VersionParser;
+import net.fabricmc.loader.impl.util.version.VersionPredicateParser;
 
 public class EntrypointPatch extends GamePatch {
+	private static final VersionPredicate VERSION_1_19_4 = createVersionPredicate(">=1.19.4-");
+
+	private final MinecraftGameProvider gameProvider;
+
+	public EntrypointPatch(MinecraftGameProvider gameProvider) {
+		this.gameProvider = gameProvider;
+	}
+
 	private void finishEntrypoint(EnvType type, ListIterator<AbstractInsnNode> it) {
 		String methodName = String.format("start%s", type == EnvType.CLIENT ? "Client" : "Server");
 		it.add(new MethodInsnNode(Opcodes.INVOKESTATIC, Hooks.INTERNAL_NAME, methodName, "(Ljava/io/File;Ljava/lang/Object;)V", false));
@@ -51,6 +65,7 @@ public class EntrypointPatch extends GamePatch {
 	public void process(FabricLauncher launcher, Function<String, ClassReader> classSource, Consumer<ClassNode> classEmitter) {
 		EnvType type = launcher.getEnvironmentType();
 		String entrypoint = launcher.getEntrypoint();
+		Version gameVersion = getGameVersion();
 
 		if (!entrypoint.startsWith("net.minecraft.") && !entrypoint.startsWith("com.mojang.")) {
 			return;
@@ -98,7 +113,31 @@ public class EntrypointPatch extends GamePatch {
 				throw new RuntimeException("Could not find main method in " + entrypoint + "!");
 			}
 
-			if (type == EnvType.SERVER) {
+			if (type == EnvType.CLIENT && mainMethod.instructions.size() < 10) {
+				// 22w24+ forwards to another method in the same class instead of processing in main() directly, use that other method instead if that's the case
+				MethodInsnNode invocation = null;
+
+				for (AbstractInsnNode insn : mainMethod.instructions) {
+					MethodInsnNode methodInsn;
+
+					if (invocation == null
+							&& insn.getType() == AbstractInsnNode.METHOD_INSN
+							&& (methodInsn = (MethodInsnNode) insn).owner.equals(mainClass.name)) {
+						// capture first method insn to the same class
+						invocation = methodInsn;
+					} else if (insn.getOpcode() > Opcodes.ALOAD // ignore constant and variable loads as well as NOP, labels and line numbers
+							&& insn.getOpcode() != Opcodes.RETURN) { // and RETURN
+						// found unexpected insn for a simple forwarding method
+						invocation = null;
+						break;
+					}
+				}
+
+				if (invocation != null) { // simple forwarder confirmed, use its target for further processing
+					final MethodInsnNode reqMethod = invocation;
+					mainMethod = findMethod(mainClass, m -> m.name.equals(reqMethod.name) && m.desc.equals(reqMethod.desc));
+				}
+			} else if (type == EnvType.SERVER) {
 				// pre-1.6 method search route
 				MethodInsnNode newGameInsn = (MethodInsnNode) findInsn(mainMethod,
 						(insn) -> insn.getOpcode() == Opcodes.INVOKESPECIAL && ((MethodInsnNode) insn).name.equals("<init>") && ((MethodInsnNode) insn).owner.equals(mainClass.name),
@@ -157,6 +196,7 @@ public class EntrypointPatch extends GamePatch {
 		MethodNode gameMethod = null;
 		MethodNode gameConstructor = null;
 		AbstractInsnNode lwjglLogNode = null;
+		AbstractInsnNode currentThreadNode = null;
 		int gameMethodQuality = 0;
 
 		if (!is20w22aServerOrHigher) {
@@ -174,12 +214,19 @@ public class EntrypointPatch extends GamePatch {
 					// Try to find a method with an LDC string "LWJGL Version: ".
 					// This is the "init()" method, or as of 19w38a is the constructor, or called somewhere in that vicinity,
 					// and is by far superior in hooking into for a well-off mod start.
+					// Also try and find a Thread.currentThread() call before the LWJGL version print.
 
 					int qual = 2;
 					boolean hasLwjglLog = false;
 
 					for (AbstractInsnNode insn : gmCandidate.instructions) {
-						if (insn instanceof LdcInsnNode) {
+						if (insn.getOpcode() == Opcodes.INVOKESTATIC && insn instanceof MethodInsnNode) {
+							final MethodInsnNode methodInsn = (MethodInsnNode) insn;
+
+							if ("currentThread".equals(methodInsn.name) && "java/lang/Thread".equals(methodInsn.owner) && "()Ljava/lang/Thread;".equals(methodInsn.desc)) {
+								currentThreadNode = methodInsn;
+							}
+						} else if (insn instanceof LdcInsnNode) {
 							Object cst = ((LdcInsnNode) insn).cst;
 
 							if (cst instanceof String) {
@@ -258,7 +305,8 @@ public class EntrypointPatch extends GamePatch {
 				// Is only method that returns a class instance
 				// If we do not find this, then we are certain this is 20w22a.
 				MethodNode serverStartMethod = findMethod(mainClass, method -> {
-					if (method.name.equals("main") && method.desc.equals("([Ljava/lang/String;)V")) {
+					if ((method.access & Opcodes.ACC_SYNTHETIC) == 0 // reject non-synthetic
+							|| method.name.equals("main") && method.desc.equals("([Ljava/lang/String;)V")) { // reject main method (theoretically superfluous now)
 						return false;
 					}
 
@@ -441,7 +489,11 @@ public class EntrypointPatch extends GamePatch {
 						it = gameMethod.instructions.iterator();
 					}
 
-					if (lwjglLogNode != null) {
+					// Add the hook just before the Thread.currentThread() call for 1.19.4 or later
+					// If older 4 method insn's before the lwjgl log
+					if (currentThreadNode != null && VERSION_1_19_4.test(gameVersion)) {
+						moveBefore(it, currentThreadNode);
+					} else if (lwjglLogNode != null) {
 						moveBefore(it, lwjglLogNode);
 
 						for (int i = 0; i < 4; i++) {
@@ -512,5 +564,21 @@ public class EntrypointPatch extends GamePatch {
 		}
 
 		return false;
+	}
+
+	private Version getGameVersion() {
+		try {
+			return VersionParser.parseSemantic(gameProvider.getNormalizedGameVersion());
+		} catch (VersionParsingException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private static VersionPredicate createVersionPredicate(String predicate) {
+		try {
+			return VersionPredicateParser.parse(predicate);
+		} catch (VersionParsingException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

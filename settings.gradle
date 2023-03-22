@@ -10,6 +10,7 @@ pluginManagement {
 rootProject.name='fabric-mod-selector'
 
 include "minecraft"
+include "junit"
 
 if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
 	include "minecraft:minecraft-test"

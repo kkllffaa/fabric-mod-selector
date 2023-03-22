@@ -16,6 +16,9 @@
 
 package net.fabricmc.loader.impl.launch;
 
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.util.Map;
 
@@ -77,8 +80,8 @@ public abstract class FabricLauncherBase implements FabricLauncher {
 
 		GameProvider gameProvider = FabricLoaderImpl.INSTANCE.tryGetGameProvider();
 
-		if (gameProvider == null || !gameProvider.displayCrash(actualExc, exc.getMainText())) {
-			FabricGuiEntry.displayError(exc.getMainText(), actualExc, true);
+		if (gameProvider == null || !gameProvider.displayCrash(actualExc, exc.getDisplayedText())) {
+			FabricGuiEntry.displayError(exc.getDisplayedText(), actualExc, true);
 		} else {
 			System.exit(1);
 		}
@@ -107,7 +110,14 @@ public abstract class FabricLauncherBase implements FabricLauncher {
 					}
 				} catch (Throwable e2) { // just in case
 					e.addSuppressed(e2);
-					e.printStackTrace();
+
+					try {
+						e.printStackTrace();
+					} catch (Throwable e3) {
+						PrintWriter pw = new PrintWriter(new FileOutputStream(FileDescriptor.err));
+						e.printStackTrace(pw);
+						pw.flush();
+					}
 				}
 			}
 		});

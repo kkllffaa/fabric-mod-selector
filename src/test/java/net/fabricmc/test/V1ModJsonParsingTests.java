@@ -26,28 +26,30 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import net.fabricmc.loader.api.SemanticVersion;
 import net.fabricmc.loader.api.metadata.CustomValue;
+import net.fabricmc.loader.impl.metadata.DependencyOverrides;
 import net.fabricmc.loader.impl.metadata.LoaderModMetadata;
 import net.fabricmc.loader.impl.metadata.ModMetadataParser;
 import net.fabricmc.loader.impl.metadata.ParseMetadataException;
+import net.fabricmc.loader.impl.metadata.VersionOverrides;
 
-@Disabled // TODO needs fixing.
 final class V1ModJsonParsingTests {
 	private static Path testLocation;
 	private static Path specPath;
 	private static Path errorPath;
 
 	@BeforeAll
-	private static void setupPaths() {
+	public static void setupPaths() {
 		testLocation = new File(System.getProperty("user.dir"))
 				.toPath()
 				.resolve("src")
@@ -157,6 +159,42 @@ final class V1ModJsonParsingTests {
 		}
 	}
 
+	@Test
+	@DisplayName("Any icon size test file")
+	public void testAnyIconSizeFile() throws IOException, ParseMetadataException {
+		final LoaderModMetadata metadata = parseMetadata(specPath.resolve("any_icon_size.json"));
+
+		validateIconPath(metadata, 32, 64);
+		validateIconPath(metadata, 64, 64);
+		validateIconPath(metadata, 128, 64);
+	}
+
+	@Test
+	@DisplayName("No icon test file")
+	public void testNoIconFile() throws IOException, ParseMetadataException {
+		final LoaderModMetadata metadata = parseMetadata(specPath.resolve("no_icon.json"));
+		assertEquals(Optional.empty(), metadata.getIconPath(32));
+	}
+
+	@Test
+	@DisplayName("Icon sizes test file")
+	public void testIconSizesFile() throws IOException, ParseMetadataException {
+		final LoaderModMetadata metadata = parseMetadata(specPath.resolve("icon_sizes.json"));
+
+		validateIconPath(metadata, 32, 64);
+		validateIconPath(metadata, 64, 64);
+		validateIconPath(metadata, 128, 128);
+		validateIconPath(metadata, 256, 256);
+		validateIconPath(metadata, 512, 256);
+	}
+
+	private void validateIconPath(LoaderModMetadata metadata, int preferredSize, int expectedSize) {
+		Optional<String> expected = Optional.of("assets/testing/icon-" + expectedSize + ".png");
+		Optional<String> actual = metadata.getIconPath(preferredSize);
+
+		assertEquals(expected, actual, "Found " + actual.orElse("no icon") + " for preferred size " + preferredSize + " instead of expected size " + expectedSize);
+	}
+
 	/*
 	 * Spec violation tests
 	 */
@@ -185,7 +223,7 @@ final class V1ModJsonParsingTests {
 
 	private static LoaderModMetadata parseMetadata(Path path) throws IOException, ParseMetadataException {
 		try (InputStream is = Files.newInputStream(path)) {
-			return ModMetadataParser.parseMetadata(null, "dummy", Collections.emptyList());
+			return ModMetadataParser.parseMetadata(is, "dummy", Collections.emptyList(), new VersionOverrides(), new DependencyOverrides(Paths.get("randomMissing")), false);
 		}
 	}
 }
