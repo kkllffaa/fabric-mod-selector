@@ -19,10 +19,10 @@ jobs:
           ./gradlew build
       - name: Read version number
         id: getversion
-        run: echo "::set-output name=version::$(ls ./build/libs/ | awk -F'-' '/download/ {print $2}' | rev | cut -c 5- | rev)"
+        run: echo "version=$(ls ./build/libs/ | awk -F'-' '/download/ {print $2}' | rev | cut -c 5- | rev)" >> $GITHUB_OUTPUT
       - name: Read fabric version number
         id: getversionfabric
-        run: echo "::set-output name=version::$(awk -F'"' '/ VERSION / {print $2}' ./src/main/java/net/fabricmc/loader/impl/FabricLoaderImpl.java)"
+        run: echo "version=$(awk -F'"' '/ VERSION / {print $2}' ./src/main/java/net/fabricmc/loader/impl/FabricLoaderImpl.java)" >> $GITHUB_OUTPUT
       - name: Create Dev Build release
         uses: marvinpinto/action-automatic-releases@latest
         with:

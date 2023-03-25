@@ -14,7 +14,7 @@ import java.util.Objects;
 public class Update {
 	public static final String repo = "kkllffaa.fabric-mod-selector.releases:download:";
 	public static final String git = "https://github.com/";
-	//public static final String git = "http://localhost/";
+
 	public final File mcjson;
 	public final Version installed, latest;
 	
