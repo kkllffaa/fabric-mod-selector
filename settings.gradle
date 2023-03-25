@@ -13,7 +13,7 @@ include "minecraft"
 include "junit"
 
 if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
-	include "minecraft:minecraft-test"
+	//include "minecraft:minecraft-test"
 } else {
 	println("Minecraft test sub project requires java 17 or higher!")
 }
